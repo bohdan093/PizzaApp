@@ -1,0 +1,32 @@
+# Built outputs
+/build
+/captures
+app/build
+
+# Gradle cache
+.gradle
+
+# Local configuration
+local.properties
+
+# Android Studio / IntelliJ IDEA
+*.iml
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/migrations.xml
+
+# Native build
+.externalNativeBuild
+.cxx
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
