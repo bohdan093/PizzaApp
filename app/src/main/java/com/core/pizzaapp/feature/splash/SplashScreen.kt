@@ -57,7 +57,7 @@ private fun SplashContent() {
     LaunchedEffect(Unit) {
         sliceAlphas.forEachIndexed { index, animatable ->
             launch {
-                delay(index * 500L)
+                delay(index * 100L)
                 animatable.animateTo(
                     targetValue = 1f,
                     animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),

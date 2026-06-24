@@ -8,8 +8,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val SLICE_COUNT = 7
-private const val SLICE_INTERVAL_MS = 500L
-private const val POST_ANIMATION_PAUSE_MS = 500L
+private const val SLICE_INTERVAL_MS = 100L
+private const val POST_ANIMATION_PAUSE_MS = 200L
 
 @HiltViewModel
 class SplashViewModel @Inject constructor() :

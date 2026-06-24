@@ -81,6 +81,10 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Coil
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
+
     // Test
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

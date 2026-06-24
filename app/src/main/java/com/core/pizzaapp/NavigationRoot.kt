@@ -13,10 +13,9 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
-import com.core.pizzaapp.feature.home.HomeScreen
+import com.core.pizzaapp.feature.pizzadetail.presentation.PizzaDetailScreen
 import com.core.pizzaapp.feature.splash.SplashScreen
 import com.core.pizzaapp.navigation.AppRoute
-import java.util.Map.entry
 
 @Composable
 fun NavigationRoot() {
@@ -46,7 +45,7 @@ private fun AppNavigation() {
         backStack = backStack,
         onBack = { backStack.removeLastOrNull() },
         entryProvider = entryProvider {
-            entry<AppRoute.Home> { HomeScreen() }
+            entry<AppRoute.Home> { PizzaDetailScreen() }
         },
     )
 }
