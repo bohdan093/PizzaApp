@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import com.core.pizzaapp.ui.theme.FigtreeFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -301,7 +302,6 @@ private fun PizzaDetailContent(
                         text = currentPizza.description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = PizzaTextPrimary,
-                        lineHeight = 20.sp,
                         modifier = Modifier.graphicsLayer { translationY = descAnim.value },
                     )
                     Spacer(Modifier.weight(1f))
@@ -419,7 +419,6 @@ private fun PizzaNavBar(
             Text(
                 text = pizzaName,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
                 color = PizzaTextPrimary,
             )
         }
@@ -598,8 +597,10 @@ private fun PizzaSizeSelector(
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = variant.size.take(1).uppercase(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        fontFamily = FigtreeFamily,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.36).sp,
                         color = if (isSelected) Color.White else PizzaTextPrimary,
                     )
                 }
@@ -717,8 +718,9 @@ private fun PizzaOrderBar(
 
                 Text(
                     text = quantity.toString(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = FigtreeFamily,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = PizzaTextPrimary,
                     modifier = Modifier.width(24.dp),
                     textAlign = TextAlign.Center,
@@ -747,8 +749,9 @@ private fun PizzaOrderBar(
 
         Text(
             text = "$%.2f".format(totalPrice),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
+            fontFamily = FigtreeFamily,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.ExtraBold,
             color = PizzaTextPrimary,
         )
 
@@ -760,8 +763,9 @@ private fun PizzaOrderBar(
         ) {
             Text(
                 text = "Add",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp,
+                fontFamily = FigtreeFamily,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 24.sp,
             )
         }
     }
