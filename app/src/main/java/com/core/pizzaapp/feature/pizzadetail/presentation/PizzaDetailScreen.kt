@@ -1,5 +1,7 @@
 package com.core.pizzaapp.feature.pizzadetail.presentation
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -7,25 +9,19 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -33,7 +29,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -43,22 +38,23 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -69,38 +65,34 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.core.pizzaapp.R
-
 import com.core.pizzaapp.feature.pizzalist.domain.Pizza
 import com.core.pizzaapp.feature.pizzalist.domain.PizzaVariant
 import com.core.pizzaapp.ui.theme.PizzaAccent
 import com.core.pizzaapp.ui.theme.PizzaBackground
-import com.core.pizzaapp.ui.theme.PizzaButtonCircle
 import com.core.pizzaapp.ui.theme.PizzaCardBg
 import com.core.pizzaapp.ui.theme.PizzaChipSelected
 import com.core.pizzaapp.ui.theme.PizzaChipUnselected
 import com.core.pizzaapp.ui.theme.PizzaEllipse
 import com.core.pizzaapp.ui.theme.PizzaTextPrimary
 import com.core.pizzaapp.ui.theme.PizzaTextSecondary
-import androidx.compose.ui.layout.onGloballyPositioned
-import kotlin.math.absoluteValue
-import kotlin.math.sqrt
-import androidx.compose.animation.core.Animatable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
+import kotlin.math.sqrt
 
 private val MaxPizzaContainerSize = 290.dp
 private val ThumbnailSize = 80.dp
+private val CarouselHeight = 310.dp
 
 private val NavBarEntrySpring = spring<Float>(
     dampingRatio = Spring.DampingRatioMediumBouncy,
     stiffness = Spring.StiffnessMediumLow,
 )
+private val ZoomAnimSpec = tween<Float>(durationMillis = 1000, easing = FastOutSlowInEasing)
 
 private fun sizeToImageDp(size: String): Dp = when (size.uppercase()) {
     "S" -> 206.dp
@@ -134,7 +126,7 @@ fun PizzaDetailScreen(viewModel: PizzaDetailViewModel = hiltViewModel()) {
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(state.error!!, color = MaterialTheme.colorScheme.error)
                     Button(
@@ -148,12 +140,7 @@ fun PizzaDetailScreen(viewModel: PizzaDetailViewModel = hiltViewModel()) {
                 state = state,
                 modifier = Modifier.padding(padding),
                 onSelectSize = { id, size ->
-                    viewModel.dispatch(
-                        PizzaDetailIntent.SelectSize(
-                            id,
-                            size
-                        )
-                    )
+                    viewModel.dispatch(PizzaDetailIntent.SelectSize(id, size))
                 },
                 onIncrease = { id -> viewModel.dispatch(PizzaDetailIntent.IncreaseQuantity(id)) },
                 onDecrease = { id -> viewModel.dispatch(PizzaDetailIntent.DecreaseQuantity(id)) },
@@ -179,12 +166,34 @@ private fun PizzaDetailContent(
         ?: currentPizza.variants.firstOrNull()
     val totalPrice = (selectedVariant?.price ?: 0.0) * quantity
 
-    var showZoom by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    val mainSizeDp by animateDpAsState(
+        targetValue = sizeToImageDp(selectedSize),
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "pizzaSizeOverlay",
+    )
+    val configuration = LocalConfiguration.current
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+
+    val carouselHalfHeightPx = with(density) { CarouselHeight.toPx() / 2f }
+    val maxContainerPx = with(density) { MaxPizzaContainerSize.toPx() }
+    val overlayBaseScale = with(density) { mainSizeDp.toPx() } / maxContainerPx
+    val overlayTargetScale = if (screenWidthPx > 0f) (screenWidthPx / maxContainerPx) * 2.2f else overlayBaseScale
+
+    val zoomProgress = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+
+    val pagerScrollEnabled by remember { derivedStateOf { zoomProgress.value < 0.01f } }
+
     var canvasTopInWindowPx by remember { mutableFloatStateOf(0f) }
     var canvasHeightPx by remember { mutableFloatStateOf(0f) }
     var selectorTopInWindowPx by remember { mutableFloatStateOf(0f) }
     var selectorHeightPx by remember { mutableFloatStateOf(0f) }
     var innerBoxTopWindowPx by remember { mutableFloatStateOf(0f) }
+    var navBarHeightPx by remember { mutableFloatStateOf(0f) }
+    var bottomContentHeightPx by remember { mutableFloatStateOf(0f) }
+    var overlayGestureScale by remember { mutableFloatStateOf(1f) }
 
     val backAnim = remember { Animatable(-160f) }
     val titleAnim = remember { Animatable(-120f) }
@@ -210,7 +219,6 @@ private fun PizzaDetailContent(
         }
     }
 
-    val density = LocalDensity.current
     val selectorBottomRelDp = with(density) {
         (selectorTopInWindowPx + selectorHeightPx - innerBoxTopWindowPx).coerceAtLeast(0f).toDp()
     }
@@ -222,9 +230,13 @@ private fun PizzaDetailContent(
             .onGloballyPositioned { coords ->
                 canvasTopInWindowPx = coords.localToWindow(Offset.Zero).y
                 canvasHeightPx = coords.size.height.toFloat()
-            }
+            },
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = 1f - zoomProgress.value },
+        ) {
             drawCircle(
                 color = PizzaEllipse,
                 radius = 303.dp.toPx(),
@@ -238,7 +250,10 @@ private fun PizzaDetailContent(
                 backTranslationX = backAnim.value,
                 titleTranslationY = titleAnim.value,
                 heartTranslationX = heartAnim.value,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { navBarHeightPx = it.size.height.toFloat()  }
+                    .graphicsLayer { translationY = (-navBarHeightPx-100f) * zoomProgress.value },
             )
 
             PizzaCarousel(
@@ -248,40 +263,55 @@ private fun PizzaDetailContent(
                 flashAlpha = { flashAnim.value },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(310.dp),
-                onZoomClick = { showZoom = true },
+                    .height(CarouselHeight),
+                zoomAnim = zoomProgress,
+                pagerScrollEnabled = pagerScrollEnabled,
+                onPinchIn = {
+                    if (!zoomProgress.isRunning) {
+                        scope.launch { zoomProgress.animateTo(1f, ZoomAnimSpec) }
+                    }
+                },
+                onPinchOut = {
+                    if (!zoomProgress.isRunning) {
+                        scope.launch { zoomProgress.animateTo(0f, ZoomAnimSpec) }
+                    }
+                },
             )
 
             Box(
                 Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .onGloballyPositioned { innerBoxTopWindowPx = it.localToWindow(Offset.Zero).y }
-            ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 24.dp),
-                    ) {
-                        Spacer(Modifier.height(selectorBottomRelDp))
-                        Spacer(Modifier.weight(1f))
-                        Text(
-                            text = currentPizza.description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = PizzaTextPrimary,
-                            lineHeight = 20.sp,
-                            modifier = Modifier.graphicsLayer { translationY = descAnim.value },
-                        )
-                        Spacer(Modifier.weight(1f))
-                        PizzaOrderBar(
-                            quantity = quantity,
-                            totalPrice = totalPrice,
-                            onIncrease = { onIncrease(currentPizza.id) },
-                            onDecrease = { onDecrease(currentPizza.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(Modifier.height(32.dp))
+                    .onGloballyPositioned {
+                        innerBoxTopWindowPx = it.localToWindow(Offset.Zero).y
+                        bottomContentHeightPx = it.size.height.toFloat()
                     }
+                    .graphicsLayer { translationY = bottomContentHeightPx * zoomProgress.value },
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                ) {
+                    Spacer(Modifier.height(selectorBottomRelDp))
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = currentPizza.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PizzaTextPrimary,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.graphicsLayer { translationY = descAnim.value },
+                    )
+                    Spacer(Modifier.weight(1f))
+                    PizzaOrderBar(
+                        quantity = quantity,
+                        totalPrice = totalPrice,
+                        onIncrease = { onIncrease(currentPizza.id) },
+                        onDecrease = { onDecrease(currentPizza.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(32.dp))
+                }
 
                 Column(
                     modifier = Modifier
@@ -305,13 +335,41 @@ private fun PizzaDetailContent(
                 }
             }
         }
-    }
 
-    if (showZoom) {
-        PizzaZoomOverlay(
-            imageUrl = currentPizza.imageUrl,
-            onDismiss = { showZoom = false },
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = if (zoomProgress.value > 0f) 1f else 0f }
+                .then(
+                    if (!pagerScrollEnabled) Modifier.pointerInput(Unit) {
+                        detectTransformGestures { _, _, zoom, _ ->
+                            overlayGestureScale *= zoom
+                            if (overlayGestureScale < 0.87f) {
+                                if (!zoomProgress.isRunning) {
+                                    scope.launch { zoomProgress.animateTo(0f, ZoomAnimSpec) }
+                                }
+                                overlayGestureScale = 1f
+                            }
+                        }
+                    } else Modifier
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            AsyncImage(
+                model = currentPizza.imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(MaxPizzaContainerSize)
+                    .graphicsLayer {
+                        val startTransY = navBarHeightPx + carouselHalfHeightPx - canvasHeightPx / 2f
+                        scaleX = lerp(overlayBaseScale, overlayTargetScale, zoomProgress.value)
+                        scaleY = lerp(overlayBaseScale, overlayTargetScale, zoomProgress.value)
+                        translationY = lerp(startTransY, 0f, zoomProgress.value)
+                    }
+                    .clip(CircleShape),
+            )
+        }
     }
 }
 
@@ -324,8 +382,7 @@ private fun PizzaNavBar(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier = modifier.padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Surface(
@@ -390,25 +447,33 @@ private fun PizzaCarousel(
     pagerState: PagerState,
     pizzas: List<Pizza>,
     state: PizzaDetailState,
-    flashAlpha: () -> Float = { 0f },
+    flashAlpha: () -> Float,
     modifier: Modifier = Modifier,
-    onZoomClick: () -> Unit,
+    zoomAnim: Animatable<Float, *>,
+    pagerScrollEnabled: Boolean,
+    onPinchIn: () -> Unit,
+    onPinchOut: () -> Unit,
 ) {
     val density = LocalDensity.current
     val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
     val contentPaddingDp = 45.dp
+    val carouselHeightPx = with(density) { CarouselHeight.toPx() }
 
     val edgeTranslationPx = remember(density, screenWidthDp) {
         with(density) { (screenWidthDp / 2f - contentPaddingDp - ThumbnailSize / 1.5f).toPx() }
     }
 
+    var cumulativeScale by remember { mutableFloatStateOf(1f) }
+
     HorizontalPager(
         state = pagerState,
         contentPadding = PaddingValues(horizontal = contentPaddingDp),
         modifier = modifier,
+        userScrollEnabled = pagerScrollEnabled,
     ) { page ->
         val pizza = pizzas[page]
         val selectedSize = state.selectedSizeFor(pizza.id, pizza.defaultSize)
+        val isCurrentPage = pagerState.currentPage == page
 
         val mainSizeDp by animateDpAsState(
             targetValue = sizeToImageDp(selectedSize),
@@ -427,27 +492,43 @@ private fun PizzaCarousel(
                 modifier = Modifier
                     .size(MaxPizzaContainerSize)
                     .graphicsLayer {
-                        val rawOffset =
-                            (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                        val progress = if (isCurrentPage) zoomAnim.value else 0f
+
+                        val rawOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
                         val absOffset = rawOffset.absoluteValue.coerceIn(0f, 1f)
-                        val mainPx = mainSizeDp.toPx()
                         val maxPx = MaxPizzaContainerSize.toPx()
+                        val mainPx = mainSizeDp.toPx()
                         val thumbPx = ThumbnailSize.toPx()
 
-                        val scaleFactor = lerp(thumbPx / maxPx, mainPx / maxPx, 1f - absOffset)
-                        scaleX = scaleFactor
-                        scaleY = scaleFactor
-                        translationX = rawOffset.coerceIn(-1f, 1f) * edgeTranslationPx
+                        val baseScale = lerp(thumbPx / maxPx, mainPx / maxPx, 1f - absOffset)
+
+                        scaleX = baseScale
+                        scaleY = baseScale
+                        translationX = lerp(rawOffset.coerceIn(-1f, 1f) * edgeTranslationPx, 0f, progress)
+                        translationY = 0f
+                        alpha = if (progress > 0f) 0f else 1f
                     }
                     .clip(CircleShape)
                     .drawWithContent {
                         drawContent()
                         drawRect(Color.White, alpha = flashAlpha())
                     }
-                    .clickable(
-                        enabled = pagerState.currentPage == page,
-                        onClick = onZoomClick,
-                    ),
+                    .pointerInput(isCurrentPage) {
+                        if (!isCurrentPage) return@pointerInput
+                        detectTransformGestures { _, _, zoom, _ ->
+                            cumulativeScale *= zoom
+                            when {
+                                cumulativeScale > 1.15f -> {
+                                    onPinchIn()
+                                    cumulativeScale = 1f
+                                }
+                                cumulativeScale < 0.87f -> {
+                                    onPinchOut()
+                                    cumulativeScale = 1f
+                                }
+                            }
+                        }
+                    },
             )
         }
     }
@@ -489,12 +570,11 @@ private fun PizzaSizeSelector(
         sortedVariants.forEach { variant ->
             val isSelected = variant.size == selectedSize
             Surface(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clickable { onSizeSelected(variant.size) },
+                modifier = Modifier.size(48.dp),
                 shape = CircleShape,
                 color = if (isSelected) PizzaChipSelected else PizzaChipUnselected,
                 shadowElevation = if (isSelected) 0.dp else 2.dp,
+                onClick = { onSizeSelected(variant.size) },
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -584,15 +664,11 @@ private fun PizzaOrderBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-
         Box {
             Surface(
                 modifier = Modifier
                     .matchParentSize()
-                    .padding(
-                        horizontal = 8.dp,
-                        vertical = 4.dp
-                    ),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 shape = RoundedCornerShape(50.dp),
                 color = PizzaBackground,
             ) {}
@@ -604,12 +680,11 @@ private fun PizzaOrderBar(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Surface(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clickable(onClick = onDecrease),
+                    modifier = Modifier.size(44.dp),
                     shadowElevation = 2.dp,
                     shape = CircleShape,
                     color = PizzaCardBg,
+                    onClick = onDecrease,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
@@ -631,12 +706,11 @@ private fun PizzaOrderBar(
                 )
 
                 Surface(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clickable(onClick = onIncrease),
+                    modifier = Modifier.size(44.dp),
                     shadowElevation = 2.dp,
                     shape = CircleShape,
                     color = PizzaCardBg,
+                    onClick = onIncrease,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
@@ -648,7 +722,6 @@ private fun PizzaOrderBar(
                     }
                 }
             }
-
         }
 
         Spacer(Modifier.weight(1f))
@@ -670,57 +743,6 @@ private fun PizzaOrderBar(
                 text = "Add",
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
-            )
-        }
-    }
-}
-
-@Composable
-private fun PizzaZoomOverlay(
-    imageUrl: String,
-    onDismiss: () -> Unit,
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = false,
-        ),
-    ) {
-        var scale by remember { mutableFloatStateOf(1f) }
-        var panOffset by remember { mutableStateOf(Offset.Zero) }
-
-        val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
-            scale = (scale * zoomChange).coerceIn(1f, 6f)
-            if (scale > 1f) panOffset += panChange
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.7f))
-                .pointerInput(Unit) { detectTapGestures { onDismiss() } },
-            contentAlignment = Alignment.Center,
-        ) {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(24.dp))
-                    .transformable(transformableState)
-                    .graphicsLayer(
-                        scaleX = scale,
-                        scaleY = scale,
-                        translationX = panOffset.x,
-                        translationY = panOffset.y,
-                    )
-                    .pointerInput(Unit) {
-                        detectTapGestures {}
-                    },
             )
         }
     }
