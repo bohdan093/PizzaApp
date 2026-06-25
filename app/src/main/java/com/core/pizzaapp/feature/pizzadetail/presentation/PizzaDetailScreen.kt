@@ -9,6 +9,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -95,9 +97,9 @@ private val NavBarEntrySpring = spring<Float>(
 private val ZoomAnimSpec = tween<Float>(durationMillis = 1000, easing = FastOutSlowInEasing)
 
 private fun sizeToImageDp(size: String): Dp = when (size.uppercase()) {
-    "S" -> 206.dp
-    "L" -> 284.dp
-    else -> 254.dp
+    "S" -> 196.dp
+    "L" -> 274.dp
+    else -> 244.dp
 }
 
 @Composable
@@ -515,16 +517,33 @@ private fun PizzaCarousel(
                     }
                     .pointerInput(isCurrentPage) {
                         if (!isCurrentPage) return@pointerInput
-                        detectTransformGestures { _, _, zoom, _ ->
-                            cumulativeScale *= zoom
-                            when {
-                                cumulativeScale > 1.15f -> {
-                                    onPinchIn()
-                                    cumulativeScale = 1f
-                                }
-                                cumulativeScale < 0.87f -> {
-                                    onPinchOut()
-                                    cumulativeScale = 1f
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            var prevDistance = -1f
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val pressed = event.changes.filter { it.pressed }
+                                if (pressed.isEmpty()) break
+                                if (pressed.size >= 2) {
+                                    event.changes.forEach { it.consume() }
+                                    val d = (pressed[0].position - pressed[1].position).getDistance()
+                                    if (prevDistance > 0f) {
+                                        val zoom = d / prevDistance
+                                        cumulativeScale *= zoom
+                                        when {
+                                            cumulativeScale > 1.15f -> {
+                                                onPinchIn()
+                                                cumulativeScale = 1f
+                                            }
+                                            cumulativeScale < 0.87f -> {
+                                                onPinchOut()
+                                                cumulativeScale = 1f
+                                            }
+                                        }
+                                    }
+                                    prevDistance = d
+                                } else {
+                                    prevDistance = -1f
                                 }
                             }
                         }
