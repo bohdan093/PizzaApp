@@ -4,8 +4,12 @@ import android.graphics.Paint
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -46,14 +50,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
@@ -488,6 +495,7 @@ private fun PizzaCarousel(
     }
 
     var cumulativeScale by remember { mutableFloatStateOf(1f) }
+    val loadingStates = remember { mutableStateMapOf<Int, Boolean>() }
 
     HorizontalPager(
         state = pagerState,
@@ -498,6 +506,7 @@ private fun PizzaCarousel(
         val pizza = pizzas[page]
         val selectedSize = state.selectedSizeFor(pizza.id, pizza.defaultSize)
         val isCurrentPage = pagerState.currentPage == page
+        val isLoading = loadingStates[page] ?: true
 
         val mainSizeDp by animateDpAsState(
             targetValue = sizeToImageDp(selectedSize),
@@ -509,10 +518,7 @@ private fun PizzaCarousel(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            AsyncImage(
-                model = pizza.imageUrl,
-                contentDescription = pizza.name,
-                contentScale = ContentScale.Crop,
+            Box(
                 modifier = Modifier
                     .size(MaxPizzaContainerSize)
                     .graphicsLayer {
@@ -557,7 +563,7 @@ private fun PizzaCarousel(
                                         cumulativeScale *= zoom
                                         when {
                                             cumulativeScale > 1.15f -> {
-                                                onPinchIn()
+                                                if (!isLoading) onPinchIn()
                                                 cumulativeScale = 1f
                                             }
 
@@ -574,19 +580,65 @@ private fun PizzaCarousel(
                             }
                         }
                     },
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = pizza.imageUrl,
+                    contentDescription = pizza.name,
+                    contentScale = ContentScale.Crop,
+                    onLoading = { loadingStates[page] = true },
+                    onSuccess = { loadingStates[page] = false },
+                    onError = { loadingStates[page] = false },
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                if (isLoading) {
+                    CircularShimmer(modifier = Modifier.fillMaxSize())
+                }
+            }
 
             Image(
                 modifier = Modifier.align(Alignment.Center).graphicsLayer {
                     scaleX = 2f
                     scaleY = 2f
-                    alpha = if (isCurrentPage && !pagerState.isScrollInProgress && zoomAnim.value < 0.01f) 1f else 0f
+                    alpha = if (isCurrentPage && !pagerState.isScrollInProgress && zoomAnim.value < 0.01f && !isLoading) 1f else 0f
                 },
                 painter = painterResource(R.drawable.ic_zoom),
                 contentDescription = null
             )
         }
     }
+}
+
+@Composable
+private fun CircularShimmer(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val progressState = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1300, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "shimmerOffset",
+    )
+    Box(
+        modifier = modifier.drawBehind {
+            val p = progressState.value
+            val startX = lerp(-size.width, size.width * 2f, p)
+            drawRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFFEDD8CF),
+                        Color(0xFFF7EDEA),
+                        Color(0xFFEDD8CF),
+                    ),
+                    start = Offset(startX, 0f),
+                    end = Offset(startX + size.width, size.height),
+                )
+            )
+        }
+    )
 }
 
 @Composable
