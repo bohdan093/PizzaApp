@@ -1,4 +1,4 @@
-package com.core.pizzaapp.feature.pizzadetail.presentation
+package com.core.pizzaapp.feature.pizzalist.presentation
 
 import androidx.compose.runtime.Immutable
 import com.core.pizzaapp.core.mvi.MviEffect

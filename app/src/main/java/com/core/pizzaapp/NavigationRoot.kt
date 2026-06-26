@@ -13,7 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
-import com.core.pizzaapp.feature.pizzadetail.presentation.PizzaDetailScreen
+import com.core.pizzaapp.feature.pizzalist.presentation.PizzaDetailScreen
 import com.core.pizzaapp.feature.splash.SplashScreen
 import com.core.pizzaapp.navigation.AppRoute
 

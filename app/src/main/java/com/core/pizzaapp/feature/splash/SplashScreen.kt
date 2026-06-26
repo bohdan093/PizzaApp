@@ -60,7 +60,7 @@ private fun SplashContent() {
                 delay(index * 100L)
                 animatable.animateTo(
                     targetValue = 1f,
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing),
                 )
             }
         }

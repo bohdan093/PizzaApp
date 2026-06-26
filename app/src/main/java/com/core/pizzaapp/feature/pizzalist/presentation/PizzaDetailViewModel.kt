@@ -1,4 +1,4 @@
-package com.core.pizzaapp.feature.pizzadetail.presentation
+package com.core.pizzaapp.feature.pizzalist.presentation
 
 import androidx.lifecycle.viewModelScope
 import com.core.pizzaapp.core.mvi.MviViewModel

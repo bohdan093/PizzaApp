@@ -1,5 +1,7 @@
-package com.core.pizzaapp.feature.pizzadetail.presentation
+package com.core.pizzaapp.feature.pizzalist.presentation
 
+import android.graphics.Paint
+import android.graphics.RectF
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -8,7 +10,9 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -49,10 +53,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
@@ -84,6 +93,7 @@ import com.core.pizzaapp.ui.theme.PizzaTextPrimary
 import com.core.pizzaapp.ui.theme.PizzaTextSecondary
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlin.io.path.Path
 import kotlin.math.absoluteValue
 import kotlin.math.sqrt
 
@@ -182,7 +192,8 @@ private fun PizzaDetailContent(
     val carouselHalfHeightPx = with(density) { CarouselHeight.toPx() / 2f }
     val maxContainerPx = with(density) { MaxPizzaContainerSize.toPx() }
     val overlayBaseScale = with(density) { mainSizeDp.toPx() } / maxContainerPx
-    val overlayTargetScale = if (screenWidthPx > 0f) (screenWidthPx / maxContainerPx) * 2.2f else overlayBaseScale
+    val overlayTargetScale =
+        if (screenWidthPx > 0f) (screenWidthPx / maxContainerPx) * 2.2f else overlayBaseScale
 
     val zoomProgress = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
@@ -197,6 +208,8 @@ private fun PizzaDetailContent(
     var navBarHeightPx by remember { mutableFloatStateOf(0f) }
     var bottomContentHeightPx by remember { mutableFloatStateOf(0f) }
     var overlayGestureScale by remember { mutableFloatStateOf(1f) }
+    var sizeColumnTopWindowPx by remember { mutableFloatStateOf(0f) }
+    var mButtonTopWindowPx by remember { mutableFloatStateOf(0f) }
 
     val backAnim = remember { Animatable(-160f) }
     val titleAnim = remember { Animatable(-120f) }
@@ -255,8 +268,8 @@ private fun PizzaDetailContent(
                 heartTranslationX = heartAnim.value,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .onGloballyPositioned { navBarHeightPx = it.size.height.toFloat()  }
-                    .graphicsLayer { translationY = (-navBarHeightPx-100f) * zoomProgress.value },
+                    .onGloballyPositioned { navBarHeightPx = it.size.height.toFloat() }
+                    .graphicsLayer { translationY = (-navBarHeightPx - 100f) * zoomProgress.value },
             )
 
             PizzaCarousel(
@@ -319,16 +332,28 @@ private fun PizzaDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopCenter)
+                        .onGloballyPositioned { sizeColumnTopWindowPx = it.localToWindow(Offset.Zero).y }
                         .graphicsLayer { translationY = sizeAreaAnim.value },
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    BananaForScale(modifier = Modifier.height(64.dp))
+                    val bananaHeightPx = with(density) { 64.dp.toPx() }
+                    val bananaAboveMGap = with(density) { 30.dp.toPx() }
+                    val mButtonLocalY = (mButtonTopWindowPx - sizeColumnTopWindowPx)
+                        .coerceAtLeast(bananaHeightPx)
+                    BananaForScale(
+                        modifier = Modifier
+                            .height(64.dp)
+                            .graphicsLayer { translationY = mButtonLocalY - bananaHeightPx - bananaAboveMGap },
+                    )
                     PizzaSizeSelector(
                         variants = currentPizza.variants,
                         selectedSize = selectedSize,
                         onSizeSelected = { onSelectSize(currentPizza.id, it) },
                         canvasHeightPx = canvasHeightPx,
-                        selectorOffsetFromCanvasTopPx = (selectorTopInWindowPx - canvasTopInWindowPx).coerceAtLeast(0f),
+                        selectorOffsetFromCanvasTopPx = (selectorTopInWindowPx - canvasTopInWindowPx).coerceAtLeast(
+                            0f
+                        ),
+                        onMButtonPositioned = { mButtonTopWindowPx = it },
                         modifier = Modifier.onGloballyPositioned {
                             selectorTopInWindowPx = it.localToWindow(Offset.Zero).y
                             selectorHeightPx = it.size.height.toFloat()
@@ -364,7 +389,8 @@ private fun PizzaDetailContent(
                 modifier = Modifier
                     .size(MaxPizzaContainerSize)
                     .graphicsLayer {
-                        val startTransY = navBarHeightPx + carouselHalfHeightPx - canvasHeightPx / 2f
+                        val startTransY =
+                            navBarHeightPx + carouselHalfHeightPx - canvasHeightPx / 2f
                         scaleX = lerp(overlayBaseScale, overlayTargetScale, zoomProgress.value)
                         scaleY = lerp(overlayBaseScale, overlayTargetScale, zoomProgress.value)
                         translationY = lerp(startTransY, 0f, zoomProgress.value)
@@ -417,7 +443,9 @@ private fun PizzaNavBar(
                 color = PizzaTextSecondary,
             )
             Text(
+                modifier = Modifier.fillMaxWidth(),
                 text = pizzaName,
+                textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.titleLarge,
                 color = PizzaTextPrimary,
             )
@@ -495,7 +523,8 @@ private fun PizzaCarousel(
                     .graphicsLayer {
                         val progress = if (isCurrentPage) zoomAnim.value else 0f
 
-                        val rawOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                        val rawOffset =
+                            (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
                         val absOffset = rawOffset.absoluteValue.coerceIn(0f, 1f)
                         val maxPx = MaxPizzaContainerSize.toPx()
                         val mainPx = mainSizeDp.toPx()
@@ -505,7 +534,8 @@ private fun PizzaCarousel(
 
                         scaleX = baseScale
                         scaleY = baseScale
-                        translationX = lerp(rawOffset.coerceIn(-1f, 1f) * edgeTranslationPx, 0f, progress)
+                        translationX =
+                            lerp(rawOffset.coerceIn(-1f, 1f) * edgeTranslationPx, 0f, progress)
                         translationY = 0f
                         alpha = if (progress > 0f) 0f else 1f
                     }
@@ -525,7 +555,8 @@ private fun PizzaCarousel(
                                 if (pressed.isEmpty()) break
                                 if (pressed.size >= 2) {
                                     event.changes.forEach { it.consume() }
-                                    val d = (pressed[0].position - pressed[1].position).getDistance()
+                                    val d =
+                                        (pressed[0].position - pressed[1].position).getDistance()
                                     if (prevDistance > 0f) {
                                         val zoom = d / prevDistance
                                         cumulativeScale *= zoom
@@ -534,6 +565,7 @@ private fun PizzaCarousel(
                                                 onPinchIn()
                                                 cumulativeScale = 1f
                                             }
+
                                             cumulativeScale < 0.87f -> {
                                                 onPinchOut()
                                                 cumulativeScale = 1f
@@ -548,6 +580,16 @@ private fun PizzaCarousel(
                         }
                     },
             )
+
+            Image(
+                modifier = Modifier.align(Alignment.Center).graphicsLayer {
+                    scaleX = 2f
+                    scaleY = 2f
+                    alpha = if (isCurrentPage && !pagerState.isScrollInProgress && zoomAnim.value < 0.01f) 1f else 0f
+                },
+                painter = painterResource(R.drawable.ic_zoom),
+                contentDescription = null
+            )
         }
     }
 }
@@ -556,15 +598,45 @@ private fun PizzaCarousel(
 private fun BananaForScale(modifier: Modifier = Modifier) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "Banana for scale",
-                fontSize = 9.sp,
-                fontStyle = FontStyle.Italic,
-                color = Color(0xFFA08060),
-                letterSpacing = 0.5.sp,
-            )
+            Canvas(
+                modifier = Modifier
+                    .graphicsLayer {
+                        translationY = -60f
+                        translationX = 25f
+                    }
+                    .width(300.dp)
+            ) {
+                drawIntoCanvas {
+                    val textPadding = 48.dp.toPx()
+                    val arcHeight = 1000.dp.toPx()
+                    val arcWidth = 280.dp.toPx()
+                    val path = android.graphics.Path().apply {
+                        addArc(0f, textPadding, arcWidth, arcHeight, 180f, 180f)
+                    }
+                    it.nativeCanvas.drawTextOnPath(
+                        "B a n a n a     f o r     s c a l e",
+                        path,
+                        0f,
+                        0f,
+                        Paint().apply {
+                            color = Color(0xFF000000).toArgb()
+                            textSize = 9.sp.toPx()
+                            textAlign = Paint.Align.CENTER
+                        }
+                    )
+                }
+            }
             Spacer(Modifier.height(2.dp))
-            Text(text = "🍌", fontSize = 30.sp)
+            Image(
+                modifier = Modifier.graphicsLayer {
+                    scaleX = 1.5f
+                    scaleY = 1.6f
+                    translationY = 110f
+                    translationX = 10f
+                },
+                painter = painterResource(R.drawable.ic_banan),
+                contentDescription = null
+            )
         }
     }
 }
@@ -577,6 +649,7 @@ private fun PizzaSizeSelector(
     canvasHeightPx: Float = 0f,
     selectorOffsetFromCanvasTopPx: Float = 0f,
     modifier: Modifier = Modifier,
+    onMButtonPositioned: (topInWindowPx: Float) -> Unit = {},
 ) {
     val sortedVariants = remember(variants) { variants.sortedBy { sizeOrder(it.size) } }
 
@@ -587,8 +660,16 @@ private fun PizzaSizeSelector(
     ) {
         sortedVariants.forEach { variant ->
             val isSelected = variant.size == selectedSize
+            val isMSize = variant.size.uppercase() == "M"
             Surface(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier
+                    .size(48.dp)
+                    .border(2.dp, if (isSelected) Color.White else Color.Transparent, CircleShape)
+                    .then(
+                        if (isMSize) Modifier.onGloballyPositioned { coords ->
+                            onMButtonPositioned(coords.localToWindow(Offset.Zero).y)
+                        } else Modifier
+                    ),
                 shape = CircleShape,
                 color = if (isSelected) PizzaChipSelected else PizzaChipUnselected,
                 shadowElevation = if (isSelected) 0.dp else 2.dp,
@@ -682,7 +763,7 @@ private fun PizzaOrderBar(
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Box {
             Surface(
@@ -722,7 +803,7 @@ private fun PizzaOrderBar(
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = PizzaTextPrimary,
-                    modifier = Modifier.width(24.dp),
+                    modifier = Modifier.width(30.dp),
                     textAlign = TextAlign.Center,
                 )
 
@@ -745,28 +826,35 @@ private fun PizzaOrderBar(
             }
         }
 
-        Spacer(Modifier.weight(1f))
 
-        Text(
-            text = "$%.2f".format(totalPrice),
-            fontFamily = FigtreeFamily,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = PizzaTextPrimary,
-        )
-
-        Button(
-            onClick = {},
-            colors = ButtonDefaults.buttonColors(containerColor = PizzaAccent),
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier.height(48.dp),
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically,) {
             Text(
-                text = "Add",
+                text = "$%.2f".format(totalPrice),
                 fontFamily = FigtreeFamily,
-                fontWeight = FontWeight.ExtraBold,
                 fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = PizzaTextPrimary,
             )
+
+
+            Spacer(Modifier.width(12.dp))
+
+            Button(
+                onClick = {},
+                colors = ButtonDefaults.buttonColors(containerColor = PizzaAccent),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .height(48.dp)
+                    .width(95.dp),
+            ) {
+                Text(
+                    text = "Add",
+                    fontFamily = FigtreeFamily,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 24.sp,
+                    color = Color.White
+                )
+            }
         }
     }
 }
