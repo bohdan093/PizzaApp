@@ -1,6 +1,6 @@
 package com.core.pizzaapp.feature.pizzalist.data.di
 
-import com.core.pizzaapp.feature.pizzalist.data.PizzaApiService
+import com.core.pizzaapp.feature.pizzalist.data.api.PizzaApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

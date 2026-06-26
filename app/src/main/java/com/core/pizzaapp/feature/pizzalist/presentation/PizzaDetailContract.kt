@@ -4,7 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.core.pizzaapp.core.mvi.MviEffect
 import com.core.pizzaapp.core.mvi.MviIntent
 import com.core.pizzaapp.core.mvi.MviState
-import com.core.pizzaapp.feature.pizzalist.domain.Pizza
+import com.core.pizzaapp.feature.pizzalist.domain.model.Pizza
 
 @Immutable
 data class PizzaDetailState(

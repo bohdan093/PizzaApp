@@ -1,7 +1,7 @@
 package com.core.pizzaapp.feature.pizzalist.data.di
 
-import com.core.pizzaapp.feature.pizzalist.domain.GetPizzaListUseCase
-import com.core.pizzaapp.feature.pizzalist.domain.PizzaRepository
+import com.core.pizzaapp.feature.pizzalist.domain.usecase.GetPizzaListUseCase
+import com.core.pizzaapp.feature.pizzalist.domain.repository.PizzaRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

@@ -1,4 +1,6 @@
-package com.core.pizzaapp.feature.pizzalist.domain
+package com.core.pizzaapp.feature.pizzalist.domain.model
+
+import com.core.pizzaapp.feature.pizzalist.domain.model.PizzaVariant
 
 data class Pizza(
     val id: String,

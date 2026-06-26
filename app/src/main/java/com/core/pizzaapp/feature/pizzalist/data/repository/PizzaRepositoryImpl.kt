@@ -1,9 +1,10 @@
-package com.core.pizzaapp.feature.pizzalist.data
+package com.core.pizzaapp.feature.pizzalist.data.repository
 
+import com.core.pizzaapp.feature.pizzalist.data.api.PizzaApiService
 import com.core.pizzaapp.feature.pizzalist.data.dto.PizzaDto
-import com.core.pizzaapp.feature.pizzalist.domain.Pizza
-import com.core.pizzaapp.feature.pizzalist.domain.PizzaRepository
-import com.core.pizzaapp.feature.pizzalist.domain.PizzaVariant
+import com.core.pizzaapp.feature.pizzalist.domain.model.Pizza
+import com.core.pizzaapp.feature.pizzalist.domain.repository.PizzaRepository
+import com.core.pizzaapp.feature.pizzalist.domain.model.PizzaVariant
 import javax.inject.Inject
 
 class PizzaRepositoryImpl @Inject constructor(

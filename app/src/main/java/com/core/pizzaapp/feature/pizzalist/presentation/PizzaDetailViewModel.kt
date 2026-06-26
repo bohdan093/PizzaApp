@@ -2,7 +2,7 @@ package com.core.pizzaapp.feature.pizzalist.presentation
 
 import androidx.lifecycle.viewModelScope
 import com.core.pizzaapp.core.mvi.MviViewModel
-import com.core.pizzaapp.feature.pizzalist.domain.GetPizzaListUseCase
+import com.core.pizzaapp.feature.pizzalist.domain.usecase.GetPizzaListUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject

@@ -77,8 +77,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.core.pizzaapp.R
-import com.core.pizzaapp.feature.pizzalist.domain.Pizza
-import com.core.pizzaapp.feature.pizzalist.domain.PizzaVariant
+import com.core.pizzaapp.feature.pizzalist.domain.model.Pizza
+import com.core.pizzaapp.feature.pizzalist.domain.model.PizzaVariant
 import com.core.pizzaapp.ui.theme.PizzaAccent
 import com.core.pizzaapp.ui.theme.PizzaBackground
 import com.core.pizzaapp.ui.theme.PizzaCardBg

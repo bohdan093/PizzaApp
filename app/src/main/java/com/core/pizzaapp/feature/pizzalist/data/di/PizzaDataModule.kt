@@ -1,7 +1,7 @@
 package com.core.pizzaapp.feature.pizzalist.data.di
 
-import com.core.pizzaapp.feature.pizzalist.data.PizzaRepositoryImpl
-import com.core.pizzaapp.feature.pizzalist.domain.PizzaRepository
+import com.core.pizzaapp.feature.pizzalist.data.repository.PizzaRepositoryImpl
+import com.core.pizzaapp.feature.pizzalist.domain.repository.PizzaRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

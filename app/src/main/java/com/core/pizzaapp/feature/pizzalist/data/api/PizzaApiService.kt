@@ -1,4 +1,4 @@
-package com.core.pizzaapp.feature.pizzalist.data
+package com.core.pizzaapp.feature.pizzalist.data.api
 
 import com.core.pizzaapp.feature.pizzalist.data.dto.PizzaListResponseDto
 import io.ktor.client.HttpClient
