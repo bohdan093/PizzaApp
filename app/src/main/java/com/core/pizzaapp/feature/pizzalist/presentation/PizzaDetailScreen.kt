@@ -1,7 +1,6 @@
 package com.core.pizzaapp.feature.pizzalist.presentation
 
 import android.graphics.Paint
-import android.graphics.RectF
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -53,14 +52,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -69,7 +66,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import com.core.pizzaapp.ui.theme.FigtreeFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -93,7 +89,6 @@ import com.core.pizzaapp.ui.theme.PizzaTextPrimary
 import com.core.pizzaapp.ui.theme.PizzaTextSecondary
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlin.io.path.Path
 import kotlin.math.absoluteValue
 import kotlin.math.sqrt
 
